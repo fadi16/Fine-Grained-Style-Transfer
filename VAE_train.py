@@ -1065,7 +1065,15 @@ is_shuffle = False
 Latent_weight = 0.4
 Model_basic_name = 'VAE-All'
 train_dir ='model/shakespeare-to-modern/VAE/' + Model_basic_name
-vae_dp = VAE_DP(None, None, None, w2id, w2id, BATCH_SIZE, test_data=(X_train, Y_train, C_train, X_dev, Y_dev, C_dev), n_epoch=NUM_EPOCH, is_shuffle=is_shuffle)
+vae_dp = VAE_DP(None,
+                None,
+                None,
+                w2id,
+                w2id,
+                BATCH_SIZE,
+                test_data=(X_train, Y_train, C_train, X_dev, Y_dev, C_dev),
+                n_epoch=NUM_EPOCH,
+                is_shuffle=is_shuffle)
 
 is_training = False
 
