@@ -1,18 +1,14 @@
 import pickle
+from platform import win32_ver
 
 if __name__ == "__main__":
     w2id, id2w = pickle.load(open("w2id_id2w.pkl", "rb"))
-
-    for mode in ["train", "test", "valid"]:
+    print(len(w2id))
+    tokens_counter = 0
+    for mode in ["test"]: #["train", "test", "valid"]:
         print(">>>" + mode + "<<<")
         encoded_sentances, classes = pickle.load(open(mode + "_C.pkl", "rb"))
-        for i in range(10):
-            s = "  ".join(id2w[id] for id in encoded_sentances[i])
-            print(s)
-            print(classes[i])
-
-        for i in range(10):
-            s = "  ".join(id2w[id] for id in encoded_sentances[len(encoded_sentances) - 1 - i])
-            print(s)
-            print(classes[len(encoded_sentances) - 1 - i])
-        print("===========================================")
+        for encoded_sentance in encoded_sentances:
+            for token_id in encoded_sentance:
+                if token_id > 17000:
+                    print(token_id)
