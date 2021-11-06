@@ -97,7 +97,7 @@ if is_training_2:
     n_epoch = 10
     batch_size = 200
 
-    out_dir = 'model/shakespeare-to-modern/VAE/'
+    out_dir = 'model/shakespeare-to-modern/VAE/attribute-predictor-separately/'
     random.shuffle(X_train)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)

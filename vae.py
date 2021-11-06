@@ -36,6 +36,7 @@ def BetaGenerator(epoches, beta_decay_period, beta_decay_offset):
     y_i = si.splev(ipl_t, y_list)
     return interpolate.interp1d(y_i, x_i)
 
+
 class VAE:
     def __init__(self, dp, rnn_size, n_layers, Lambda, gamma, num_classes, latent_dim, encoder_embedding_dim,
                  decoder_embedding_dim, max_infer_length,
