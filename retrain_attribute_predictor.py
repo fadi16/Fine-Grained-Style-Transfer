@@ -1,6 +1,6 @@
 import pickle
 from textCNN import *
-from VAE_train import VAE, VAE_DP
+from vae import VAE, VAE_DP
 import os
 
 

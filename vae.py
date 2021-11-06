@@ -1,77 +1,40 @@
 import os
-import pickle
 import copy
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from tensorflow.python.layers import core as core_layers
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.ops import array_ops
 import time
-# import jieba
 from Util import mybleu
 from Util import myResidualCell
-import random
 import pickle as cPickle
 import matplotlib.pyplot as plt
-import nltk
+import scipy.interpolate as si
+from scipy import interpolate
 
-w2id, id2w = pickle.load(open('shakespearian-corpus/w2id_id2w.pkl','rb'))
-
-
-def idx2str(s):
-    return ' '.join([id2w[idx] for idx in s])
-
-def str2idx(idx):
-    idx = idx.strip()
-    return [w2id[idxx] for idxx in idx.split()]
-
-def pad(x, pid, move_go=False):
-    max_length = 30
-    x = [k[:max_length] for k in x]
-    if move_go:
-        length_list = [len(k) - 1 for k in x]
-    else:
-        length_list = [len(k) for k in x]
-    max_length = max(length_list)
-    pad_x = []
-    for k in x:
-        if move_go:
-            pad_k = k[1:] + [pid, ] * (max_length - len(k[1:]))
-        else:
-            pad_k = k + [pid, ] * (max_length - len(k))
-        pad_x.append(pad_k)
-    return pad_x, length_list
-
-def pad_maxlength(x, pid, move_go=False):
-    max_length = 30
-    if move_go:
-        length_list = [len(k) - 1 for k in x]
-    else:
-        length_list = [min(len(k), max_length) for k in x]
-
-    pad_x = []
-    for k in x:
-        if move_go:
-            pad_k = k[1:] + [pid, ] * (max_length - len(k[1:]))
-        else:
-            pad_k = k[:max_length] + [pid, ] * (max_length - len(k))
-        pad_x.append(pad_k)
-    return pad_x, length_list
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
-# setting session config
-tf.logging.set_verbosity(tf.logging.INFO)
-#sess_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
-sess_conf = tf.ConfigProto(log_device_placement=True)
-
-def word_overlap_edit(s1, s2):
-    t1 = set(s1.split())
-    t2 = set(s2.split())
-    word_overlap = float(len(t1 & t2)) / len(t1 | t2)
-    edit_distance = 1 - float(nltk.edit_distance(s1.split(), s2.split())) /  max(len(s1.split()), len(s2.split()))
-    return word_overlap, edit_distance
-
+def BetaGenerator(epoches, beta_decay_period, beta_decay_offset):
+    points = [[0, 0], [0, beta_decay_offset], [0, beta_decay_offset + 0.33 * beta_decay_period],
+              [1, beta_decay_offset + 0.66 * beta_decay_period], [1, beta_decay_offset + beta_decay_period],
+              [1, epoches]]
+    points = np.array(points)
+    x = points[:, 0]
+    y = points[:, 1]
+    t = range(len(points))
+    ipl_t = np.linspace(0.0, len(points) - 1, 100)
+    x_tup = si.splrep(t, x, k=3)
+    y_tup = si.splrep(t, y, k=3)
+    x_list = list(x_tup)
+    xl = x.tolist()
+    x_list[1] = xl + [0.0, 0.0, 0.0, 0.0]
+    y_list = list(y_tup)
+    yl = y.tolist()
+    y_list[1] = yl + [0.0, 0.0, 0.0, 0.0]
+    x_i = si.splev(ipl_t, x_list)
+    y_i = si.splev(ipl_t, y_list)
+    return interpolate.interp1d(y_i, x_i)
 
 class VAE:
     def __init__(self, dp, rnn_size, n_layers, Lambda, gamma, num_classes, latent_dim, encoder_embedding_dim,
@@ -353,7 +316,7 @@ class VAE:
         self.avg_bow_loss = tf.reduce_mean(bow_loss)
 
         self.loss = self.Lambda * self.c_loss + (1 - self.Lambda) * (
-                    self.r_loss + self.B * self.latent_weight * self.kl_loss + self.avg_bow_loss)
+                self.r_loss + self.B * self.latent_weight * self.kl_loss + self.avg_bow_loss)
         params = tf.trainable_variables()
         gradients = tf.gradients(self.loss, params)
         clipped_gradients, _ = tf.clip_by_global_norm(gradients, self.grad_clip)
@@ -753,7 +716,7 @@ class VAE_DP:
         self._x_pad = self.X_w2id['<PAD>']
         self._y_pad = self.Y_w2id['<PAD>']
         print(
-            'Train_data: %d | Test_data: %d | Batch_size: %d | Num_batch: %d | X_vocab_size: %d | Y_vocab_size: %d' % (
+                'Train_data: %d | Test_data: %d | Batch_size: %d | Num_batch: %d | X_vocab_size: %d | Y_vocab_size: %d' % (
             len(self.X_train), len(self.X_test), BATCH_SIZE, self.num_batch, len(self.X_w2id), len(self.Y_w2id)))
 
     def next_batch(self, X, Y, C):
@@ -806,66 +769,6 @@ class VAE_DP:
         return padded_seqs, seq_lens
 
 
-import scipy.interpolate as si
-from scipy import interpolate
-
-
-def pad(x, pid, move_go=False):
-    x = [k[:30] for k in x]
-    if move_go:
-        length_list = [len(k) - 1 for k in x]
-    else:
-        length_list = [len(k) for k in x]
-    max_length = max(length_list)
-    pad_x = []
-    for k in x:
-        if move_go:
-            pad_k = k[1:] + [pid, ] * (max_length - len(k[1:]))
-        else:
-            pad_k = k + [pid, ] * (max_length - len(k))
-        pad_x.append(pad_k)
-    return pad_x, length_list
-
-
-def pad_maxlength(x, pid, move_go=False):
-    max_length = 30
-    if move_go:
-        length_list = [len(k) - 1 for k in x]
-    else:
-        length_list = [min(len(k), max_length) for k in x]
-
-    pad_x = []
-    for k in x:
-        if move_go:
-            pad_k = k[1:] + [pid, ] * (max_length - len(k[1:]))
-        else:
-            pad_k = k[:max_length] + [pid, ] * (max_length - len(k))
-        pad_x.append(pad_k)
-    return pad_x, length_list
-
-
-def BetaGenerator(epoches, beta_decay_period, beta_decay_offset):
-    points = [[0, 0], [0, beta_decay_offset], [0, beta_decay_offset + 0.33 * beta_decay_period],
-              [1, beta_decay_offset + 0.66 * beta_decay_period], [1, beta_decay_offset + beta_decay_period],
-              [1, epoches]];
-    points = np.array(points)
-    x = points[:, 0]
-    y = points[:, 1]
-    t = range(len(points))
-    ipl_t = np.linspace(0.0, len(points) - 1, 100)
-    x_tup = si.splrep(t, x, k=3)
-    y_tup = si.splrep(t, y, k=3)
-    x_list = list(x_tup)
-    xl = x.tolist()
-    x_list[1] = xl + [0.0, 0.0, 0.0, 0.0]
-    y_list = list(y_tup)
-    yl = y.tolist()
-    y_list[1] = yl + [0.0, 0.0, 0.0, 0.0]
-    x_i = si.splev(ipl_t, x_list)
-    y_i = si.splev(ipl_t, y_list)
-    return interpolate.interp1d(y_i, x_i)
-
-
 class VAE_util:
     def __init__(self, dp, model, display_freq=3, is_show=True):
         self.display_freq = display_freq
@@ -884,8 +787,8 @@ class VAE_util:
         tic = time.time()
         X_test_batch, Y_test_batch, C_test_batch, X_test_batch_lens, Y_test_batch_lens = self.dp.sample_test_batch()
         for local_step, (
-        X_train_batch, Y_train_batch, C_train_batch, X_train_batch_lens, Y_train_batch_lens) in enumerate(
-                self.dp.next_batch(self.dp.X_train, self.dp.Y_train, self.dp.C_train)):
+                X_train_batch, Y_train_batch, C_train_batch, X_train_batch_lens, Y_train_batch_lens) in enumerate(
+            self.dp.next_batch(self.dp.X_train, self.dp.Y_train, self.dp.C_train)):
             # print(len(C_train_batch), len(X_train_batch))
             beta = 0.001 + self.betaG(self.model.step)
             self.model.step, _, r_loss, c_loss, acc, kl_loss = self.model.sess.run(
@@ -925,7 +828,7 @@ class VAE_util:
                          self.model.input_keep_prob: 1,
                          self.model.B: beta})
                     print(
-                        "Epoch %d/%d | Batch %d/%d | Train_loss: R %.3f C %.3f acc %.3f kl %.3f | Test_loss: R %.3f C %.3f acc %.3f kl %.3f | Time_cost:%.3f" % (
+                            "Epoch %d/%d | Batch %d/%d | Train_loss: R %.3f C %.3f acc %.3f kl %.3f | Test_loss: R %.3f C %.3f acc %.3f kl %.3f | Time_cost:%.3f" % (
                         epoch, self.n_epoch, local_step, self.dp.num_batch,
                         avg_r_loss / (local_step + 1),
                         avg_c_loss / (local_step + 1),
@@ -940,7 +843,7 @@ class VAE_util:
 
                     tic = time.time()
         return avg_r_loss / (local_step + 1), avg_c_loss / (local_step + 1), avg_acc / (local_step + 1), avg_kl_loss / (
-                    local_step + 1)
+                local_step + 1)
 
     def test(self):
         avg_r_loss = 0.0
@@ -965,7 +868,7 @@ class VAE_util:
             avg_kl_loss += kl_loss
             avg_acc += acc
         return avg_r_loss / (local_step + 1), avg_c_loss / (local_step + 1), avg_acc / (local_step + 1), avg_kl_loss / (
-                    local_step + 1)
+                local_step + 1)
 
     def fit(self, train_dir, is_bleu):
         self.n_epoch = self.dp.n_epoch
@@ -981,7 +884,7 @@ class VAE_util:
             test_r_loss, test_c_loss, test_acc, test_kl = self.test()
 
             print(
-                "Epoch %d/%d | Train_loss: R %.3f C %.3f acc %.3f kl %.3f | Test_loss: R %.3f C %.3f acc %.3f kl %.3f " % (
+                    "Epoch %d/%d | Train_loss: R %.3f C %.3f acc %.3f kl %.3f | Test_loss: R %.3f C %.3f acc %.3f kl %.3f " % (
                 epoch, self.n_epoch, train_r_loss, train_c_loss, train_acc, train_kl,
                 test_r_loss, test_c_loss, test_acc, test_kl))
             path = self.model.saver.save(self.model.sess, checkpoint_prefix, global_step=epoch)
@@ -1043,73 +946,3 @@ class VAE_util:
         l2, = plt.plot(bleu_list, 'b')
         plt.legend(handles=[l1, l2], labels=["Test_loss", "BLEU"], loc='best')
         plt.show()
-
-########################
-## Data
-#######################
-w2id, id2w = pickle.load(open('shakespearian-corpus/w2id_id2w.pkl','rb'))
-Y_train, C_train = pickle.load(open('shakespearian-corpus/train_C.pkl','rb'))
-Y_dev, C_dev = pickle.load(open('shakespearian-corpus/valid_C.pkl','rb'))
-Y_test, C_test = pickle.load(open('shakespearian-corpus/test_C.pkl','rb'))
-
-X_train = [x[:-1] for x in Y_train]
-X_dev = [x[:-1] for x in Y_dev]
-X_test = [x[:-1] for x in Y_test]
-
-################################
-##  Set Parameters for training
-################################
-BATCH_SIZE = 200
-NUM_EPOCH = 35
-is_shuffle = False
-Latent_weight = 0.4
-Model_basic_name = 'VAE-All'
-train_dir ='model/shakespeare-to-modern/VAE/' + Model_basic_name
-vae_dp = VAE_DP(None,
-                None,
-                None,
-                w2id,
-                w2id,
-                BATCH_SIZE,
-                test_data=(X_train, Y_train, C_train, X_dev, Y_dev, C_dev),
-                n_epoch=NUM_EPOCH,
-                is_shuffle=is_shuffle)
-
-is_training = False
-
-############################
-##  Training
-###########################
-is_training = False
-if is_training:
-    g = tf.Graph()
-    sess = tf.Session(graph=g, config=sess_conf)
-    with sess.as_default():
-        with sess.graph.as_default():
-            model = VAE(
-                dp = vae_dp,
-                rnn_size = 512,
-                n_layers = 1,
-                encoder_embedding_dim = 128,
-                decoder_embedding_dim = 128,
-                cell_type = 'lstm',
-                latent_dim = 512,
-                beta_decay_period = 10,
-                beta_decay_offset = 5,
-                latent_weight = Latent_weight,
-                bow_size = 400,
-                is_inference = False,
-                num_classes = 2,
-                max_infer_length = 20,
-                #att_type='B',
-                beam_width=10,
-                Lambda = 0.9,
-                gamma = 10.0,
-                residual = False,
-                sess=sess
-            )
-            #print(len(tf.global_variables()))
-
-    util = VAE_util(dp=vae_dp, model=model)
-    #model.restore('model/shakespeare-to-modern/VAE/model-35')
-    util.fit(train_dir=train_dir, is_bleu=False)
