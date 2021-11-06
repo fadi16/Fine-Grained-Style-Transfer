@@ -2,7 +2,7 @@ import os
 import pickle
 import copy
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from tensorflow.python.layers import core as core_layers
 import tensorflow as tf
 import numpy as np
@@ -62,8 +62,8 @@ def pad_maxlength(x, pid, move_go=False):
 
 # setting session config
 tf.logging.set_verbosity(tf.logging.INFO)
-sess_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
-
+#sess_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+sess_conf = tf.ConfigProto(log_device_placement=True)
 
 def word_overlap_edit(s1, s2):
     t1 = set(s1.split())
@@ -1080,7 +1080,7 @@ is_training = False
 ############################
 ##  Training
 ###########################
-is_training = True
+is_training = False
 if is_training:
     g = tf.Graph()
     sess = tf.Session(graph=g, config=sess_conf)

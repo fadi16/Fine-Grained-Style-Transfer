@@ -1,6 +1,10 @@
 import pickle
 from textCNN import *
 from VAE_train import VAE, VAE_DP
+import os
+
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 ########################
 ## Data
@@ -24,7 +28,7 @@ is_shuffle = False
 Latent_weight = 0.4
 # setting session config
 tf.logging.set_verbosity(tf.logging.INFO)
-sess_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+sess_conf = tf.ConfigProto(log_device_placement=True)
 
 ##############################
 ## Init Test model
@@ -81,7 +85,7 @@ with sess_cnn.as_default():
 ######################################
 ## restoring the CNNText classifier
 #####################################
-D.restore("model/shakespeare-to-modern/TextCNN/model-30.data-00000-of-00001")
+D.restore("model/shakespeare-to-modern/TextCNN/model-30")
 
 #####################################
 ##  Retrain Attribute Predictor
@@ -89,11 +93,11 @@ D.restore("model/shakespeare-to-modern/TextCNN/model-30.data-00000-of-00001")
 is_training_2 = True
 
 if is_training_2:
-    model.restore('model/shakespeare-to-modern/VAE-All/model-35.data-00000-of-00001')
+    model.restore('model/shakespeare-to-modern/VAE/VAE-All/model-35')
     n_epoch = 10
     batch_size = 200
 
-    out_dir = 'model/shakespeare-to-modern/VAE-All/'
+    out_dir = 'model/shakespeare-to-modern/VAE/'
     random.shuffle(X_train)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
