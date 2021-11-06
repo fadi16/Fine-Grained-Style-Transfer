@@ -98,7 +98,7 @@ with sess.as_default():
 is_training_3 = True
 
 if is_training_3:
-    model.restore('model/shakespeare-to-modern/VAE/attribute-predictor-separately/')
+    model.restore('model/shakespeare-to-modern/VAE/attribute-predictor-separately/model-10')
     n_epoch = 10
     batch_size = 200
     out_dir = 'model/shakespeare-to-modern/VAE/content-predictor-separately/'
